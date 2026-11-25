@@ -37,12 +37,12 @@ Requirements: Python 3.11–3.12 (64-bit), `ffmpeg` on PATH (`winget install Gya
 cd /d "D:\Mishka LoFi\Automation"
 py -3.12 -m venv .venv
 .venv\Scripts\activate
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
 copy .env.example .env
+python gpu_check.py
 ```
 
-The `torch` line lets Demucs use the NVIDIA GPU; without it, stem separation runs on CPU (1–2 min per song, once — stems are cached).
+`requirements.txt` pins PyTorch 2.11 built for CUDA 12.8 so Demucs runs on the NVIDIA GPU; `gpu_check.py` confirms it (on CPU, stem separation takes 1–2 min per song, once — stems are cached).
 
 `.env` is only needed for the optional APIs:
 

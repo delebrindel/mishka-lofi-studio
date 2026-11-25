@@ -23,6 +23,13 @@ STEMS = ("drums", "bass", "other", "vocals")
 
 
 # ---------- separación ----------
+def model_cached() -> bool:
+    """¿Ya está descargado algún modelo de Demucs en la caché de PyTorch?"""
+    import os
+    hub = Path(os.environ.get("TORCH_HOME", Path.home() / ".cache" / "torch")) / "hub" / "checkpoints"
+    return any(hub.glob("*.th"))
+
+
 def separate(wav: Path, model="htdemucs") -> dict:
     """Devuelve {stem: ruta} para drums, bass, other, vocals. Usa caché en stems/<nombre>/."""
     stem_dir = wav.parent / "stems" / wav.stem
@@ -30,7 +37,8 @@ def separate(wav: Path, model="htdemucs") -> dict:
     if all(p.exists() and p.stat().st_mtime > wav.stat().st_mtime for p in paths.values()):
         return paths
     tmp = wav.parent / "stems" / "_demucs"
-    print(f"  separando batería y bajo con Demucs ({model})… la primera vez descarga el modelo")
+    print(f"  separando stems de {wav.name} con Demucs ({model})…"
+          + ("" if model_cached() else " primera vez: descargando el modelo (~80 MB, solo esta vez)"))
     r = subprocess.run([sys.executable, "-m", "demucs", "-n", model, "--float32", "-o", str(tmp), str(wav)],
                        capture_output=True, text=True)
     if r.returncode != 0:

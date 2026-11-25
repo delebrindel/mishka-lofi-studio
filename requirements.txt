@@ -1,3 +1,8 @@
+# PyTorch con GPU NVIDIA (CUDA 12.8). Fijado para que pip no lo cambie por la versión CPU.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0+cu128
+torchaudio==2.11.0+cu128
+
 openai
 pillow
 python-dotenv
