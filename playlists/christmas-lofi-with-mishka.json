@@ -1,0 +1,24 @@
+{
+  "title": "Christmas LoFi with Mishka",
+  "slug": "christmas-lofi-with-mishka",
+  "crossfade": 4,
+  "lufs": -14,
+  "ceiling": -1.0,
+  "format": "horizontal",
+  "tracks": [
+    "first-lights-on-the-tree",
+    "snowfall-by-the-fireplace",
+    "christmas-morning",
+    "cocoa-and-old-records",
+    "wrapping-gifts-slowly",
+    "snow-on-the-rooftops",
+    "letters-to-santa",
+    "candlelight-hush",
+    "frosted-window-pane",
+    "gingerbread-afternoon",
+    "quiet-christmas-night",
+    "under-the-wool-blanket",
+    "the-last-ornament",
+    "sleeping-by-the-tree"
+  ]
+}

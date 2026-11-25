@@ -1,0 +1,11 @@
+openai
+pillow
+python-dotenv
+anthropic
+requests
+opencv-contrib-python
+scipy
+numpy
+soundfile
+demucs
+gradio>=6
