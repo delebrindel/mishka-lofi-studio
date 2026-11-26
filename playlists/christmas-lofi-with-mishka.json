@@ -2,6 +2,8 @@
   "title": "Christmas LoFi with Mishka",
   "slug": "christmas-lofi-with-mishka",
   "crossfade": 4,
+  "fade_in": 5,
+  "fade_out": 5,
   "lufs": -14,
   "ceiling": -1.0,
   "format": "horizontal",
@@ -20,5 +22,8 @@
     "under-the-wool-blanket",
     "the-last-ornament",
     "sleeping-by-the-tree"
-  ]
+  ],
+  "cover_title": "Christmas LoFi",
+  "scene": "Christmas Eve in a cozy wooden cabin at night. Mishka lies on a patchwork quilt in the center-right, gazing toward a large wooden window on the right where heavy snow falls over pine trees and small houses with lit windows under a deep blue sky. On the left, a Christmas tree with warm string lights and ornaments, wrapped gifts beneath it. A stone fireplace with a glowing fire in the background. Next to Mishka, a small table with a steaming mug of cocoa, a tiny open music box and a vintage record player. A fabric lamp with amber light, hanging plants and books. Quiet, intimate, nostalgic.",
+  "gap": 1.0
 }

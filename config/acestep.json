@@ -1,0 +1,5 @@
+{
+  "reference_audio": null,
+  "lm_temperature": 0.7,
+  "lm_cfg_scale": 2.5
+}

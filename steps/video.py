@@ -45,6 +45,8 @@ def render(folder: Path, audio=None, visual=None, log=print) -> Path:
     folder = Path(folder)
     v, a = find_inputs(folder, audio, visual)
     out = folder / "video.mp4"
+    tmp = folder / "video_rendering.mp4"   # se renombra al final: un render interrumpido no deja un video.mp4 cortado
+    tmp.unlink(missing_ok=True)
     total = duration(a)
     log(f"🎬 {v.name} + {a.name}  ({int(total // 60)}:{int(total % 60):02d})")
 
@@ -57,14 +59,15 @@ def render(folder: Path, audio=None, visual=None, log=print) -> Path:
         # 2) repetirlo sin recodificar y ponerle el audio
         cmd = ["ffmpeg", "-y", "-v", "error", "-stream_loop", "-1", "-i", str(seg), "-i", str(a),
                "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "320k", "-ar", "48000",
-               "-t", f"{total:.3f}", "-movflags", "+faststart", str(out)]
+               "-t", f"{total:.3f}", "-movflags", "+faststart", str(tmp)]
     else:
         seg = None
         cmd = ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "1", "-i", str(v), "-i", str(a),
                "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-tune", "stillimage", "-crf", "18",
                "-pix_fmt", "yuv420p", "-r", "30", "-g", "300",
-               "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-t", f"{total:.3f}", "-movflags", "+faststart", str(out)]
+               "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-t", f"{total:.3f}", "-movflags", "+faststart", str(tmp)]
     subprocess.run(cmd, check=True)
+    tmp.replace(out)
     if seg:
         seg.unlink(missing_ok=True)
     got = duration(out)

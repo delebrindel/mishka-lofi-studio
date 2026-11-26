@@ -2,7 +2,7 @@
 
 Cuando en un chat de este proyecto se pidan prompts / propuestas / un brief para una canción de Mishka LoFi:
 
-1. Sigue la guía de estilo de `pipeline/config/brief_instructions.md` (caption, estructura, BPM, tonalidad,
+1. Sigue la guía de estilo de `pipeline/config/brief_instructions.md` (captions en prosa, guía v3) (caption, estructura, BPM, tonalidad,
    título y descripción de YouTube con el formato exacto).
 2. Revisa los títulos ya usados que mencione la persona para no repetirlos.
 3. Entrega las propuestas (3 por defecto) en UN solo bloque de código JSON, listo para copiar y pegar en
@@ -19,8 +19,8 @@ Formato del bloque (un arreglo, aunque sea una sola propuesta):
     "tags": ["lofi", "cozy lofi", "winter lofi", "piano lofi", "study music"],
     "scene": "Mishka lying on a quilt by a stone fireplace, snow falling behind a big wooden window, amber lamp, steaming mug.",
     "song": {
-      "caption": "warm cozy winter lofi piano, soft felt piano lead, ..., fade-out ending",
-      "lyrics": "[Intro - piano]\n[Main Theme - piano and Rhodes]\n[Main Theme - piano]\n[Outro - fade out]",
+      "caption": "A <2 adjetivos> <tema> lo-fi instrumental track with modern chillhop production, led by soft, intimate close-mic felt piano. It opens with ..., then ... enter beneath warm Rhodes playing consonant ... chords that stay in key. The mix is clean but warm, with light vinyl crackle, subtle tape saturation and an airy reverb, evoking .... It stays sparse and laid-back throughout and ends with a gentle fade-out as the felt piano holds the final chord.",
+      "lyrics": "[Intro - piano]\n[Main Theme - piano and Rhodes]\n[Main Theme - piano]\n[Outro - piano, music fades out]",
       "bpm": 66, "key": "F", "time_signature": 4, "duration": 210, "batch_size": 2
     }
   }

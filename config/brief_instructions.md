@@ -8,25 +8,52 @@ Mishka LoFi: cozy lo-fi instrumental. Mishka es una perrita spitz de ojos azul h
 Escenas: ventanas con lluvia o nieve, interiores de madera cálidos, lámparas ámbar, libros, mantas, plantas, chimenea.
 Mood: pacífico, íntimo, nostálgico, ligeramente melancólico. Siempre instrumental.
 
-## Caption de ACE-Step (en inglés)
-- Una sola línea de frases separadas por comas, 40–80 palabras.
-- Orden: género/estado de ánimo → instrumento principal → armonía/acompañamiento → batería → textura → escena/ambiente → final.
-- Base sonora típica: soft felt piano lead, warm Rhodes chords, jazzy extended chords (maj7, min9, half-diminished passing chords), very slow relaxed drums, soft vinyl texture.
-- Los sonidos ambientales (lluvia, chimenea, campanitas) siempre "faint ... far in the background" para que no dominen.
-- Termina con "fade-out ending" salvo que la idea pida otra cosa.
+## Caption de ACE-Step (en inglés) — guía v3
+Basada en cómo se entrenó ACE-Step 1.5: sus captions de entrenamiento los escribió el "ACE-Step Captioner"
+en prosa (4-5 oraciones), y los 50 ejemplos oficiales del repo siguen ese mismo estilo (~85-110 palabras).
+Escribe el caption como si describieras el audio terminado:
+
+1. Género + ánimo + producción: "A <2 adjetivos> <Christmas|winter|rainy…> lo-fi instrumental track with modern
+   chillhop production, led by soft, intimate close-mic felt piano."
+2. Cómo abre y qué entra: "It opens with <instrumento de la intro>, then <ritmo/bajo> enter beneath warm Rhodes
+   playing <armonía consonante>."
+3. (Opcional) UN acento: "A delicate music box answers the piano far in the background."
+4. Mezcla, textura y atmósfera: "The mix is clean but warm, with light vinyl crackle, subtle tape saturation and an
+   airy reverb, evoking <escena en pocas palabras>."
+5. Cómo evoluciona y termina: "It stays sparse and laid-back throughout and ends with a gentle fade-out as the felt
+   piano holds the final chord."
+
+Reglas:
+- Siempre la palabra "instrumental". Nada de BPM, tonalidad ni palabras de voz (van en sus campos).
+- Armonía consonante: "consonant major-seventh / major-ninth chords that stay in key" o "soft, consonant minor
+  chords that stay in key". Nunca half-diminished, jazzy, chromatic ni tension.
+- Ritmo: "soft brushed drums and a round, gentle bass"; más quieto: "very soft, sparse drums".
+- Ambiente (lluvia, fuego, viento, reloj) solo "faint … far in the background", máximo 2.
+- La escena es UNA frase corta después de "evoking": el modelo describe audio, no imágenes.
+- El instrumento de la intro y el acento deben aparecer también en la estructura (lyrics).
 - Ejemplo real:
-  warm cozy winter lofi piano, soft felt piano lead, warm Rhodes chords underneath, soft half-diminished passing chords, very slow relaxed drums, soft vinyl texture, quiet evening by the fireplace mood, snow falling outside the window, safe and warm inside, faint fireplace crackle far in the background, fade-out ending
+  A calm, expectant Christmas lo-fi instrumental track with modern chillhop production, led by soft, intimate close-mic felt piano. It opens with felt piano and delicate celesta sparkles, then soft brushed drums and a round, gentle bass enter beneath warm Rhodes playing consonant major-ninth chords that stay in key. The mix is clean but warm, with light vinyl crackle, subtle tape saturation and an airy reverb, evoking blue dusk over a snowy village as the first lights turn on. It stays sparse and laid-back throughout and ends with a gentle fade-out as the felt piano holds the final chord.
 
 ## Lyrics (estructura, sin letra)
-Solo etiquetas de sección con el instrumento, por ejemplo:
+SIMPLE, 4 secciones (la estructura detallada con [Instrumental]/[Bridge] repetidos se salió de tono en el A/B).
+Etiquetas con instrumento, sin letra, y la salida al estilo de los ejemplos oficiales ("music fades out"):
 [Intro - piano]
 [Main Theme - piano and Rhodes]
 [Main Theme - piano]
-[Outro - fade out]
+[Outro - piano, music fades out]
+Si hay instrumento distintivo, que abra y cierre: [Intro - music box] … [Outro - music box, music fades out].
 
 ## Parámetros
-- BPM 60–80 (más lento = más íntimo). Compás 4/4. Duración 210 s. Batch 2.
-- Tonalidad: mayor para escenas cálidas/esperanzadas (F, Bb, Eb, D), menor para melancolía/lluvia (Am, Dm, Em).
+- BPM 62–80 (más lento = más íntimo; por debajo de 60 ACE-Step se vuelve inestable). Compás 4/4. Duración 210–220 s. Batch 2.
+- Tonalidad: SOLO tonalidades comunes, que son las más estables en ACE-Step. Mayores: C, G, D, F, A, E, Bb, Eb. Menores: Am, Em, Dm, Bm. Evita Db, Ab, Gb, Fm, Cm, Gm, F#m, C#m.
+- Mayor para escenas cálidas/esperanzadas, menor para melancolía/lluvia.
+
+## Estabilidad (para que ACE-Step no "alucine")
+- Nada de BPM, tonalidad ni palabras de voz (vocals, singing, choir, voice) en el caption.
+- Máximo 2 sonidos ambientales "far in the background" por canción.
+- Un instrumento distintivo por canción (caja de música O campanitas O celesta), no varios.
+- Etiquetas de estructura cortas: máximo 2 instrumentos por corchete ("[Main Theme - piano and Rhodes]"), sin listas.
+- El caption describe lo mismo que la estructura: si la estructura dice "guitar", el caption también.
 - Temporada navideña: se vale sumar un guiño navideño (campanitas suaves, acorde navideño) sin volverlo villancico.
 
 ## Título y descripción de YouTube

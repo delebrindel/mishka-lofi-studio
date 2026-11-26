@@ -30,6 +30,18 @@ def model_cached() -> bool:
     return any(hub.glob("*.th"))
 
 
+def demucs_device() -> tuple[str, str]:
+    """('cuda', 'NVIDIA GeForce …') si PyTorch ve la gráfica; si no ('cpu', motivo)."""
+    try:
+        import torch
+    except ImportError:
+        return "cpu", "PyTorch no está instalado"
+    if torch.cuda.is_available():
+        return "cuda", torch.cuda.get_device_name(0)
+    why = "PyTorch es versión CPU" if "+cpu" in torch.__version__ or torch.version.cuda is None else "CUDA no disponible"
+    return "cpu", f"{why} ({torch.__version__})"
+
+
 def separate(wav: Path, model="htdemucs") -> dict:
     """Devuelve {stem: ruta} para drums, bass, other, vocals. Usa caché en stems/<nombre>/."""
     stem_dir = wav.parent / "stems" / wav.stem
@@ -37,9 +49,10 @@ def separate(wav: Path, model="htdemucs") -> dict:
     if all(p.exists() and p.stat().st_mtime > wav.stat().st_mtime for p in paths.values()):
         return paths
     tmp = wav.parent / "stems" / "_demucs"
-    print(f"  separando stems de {wav.name} con Demucs ({model})…"
-          + ("" if model_cached() else " primera vez: descargando el modelo (~80 MB, solo esta vez)"))
-    r = subprocess.run([sys.executable, "-m", "demucs", "-n", model, "--float32", "-o", str(tmp), str(wav)],
+    dev, name = demucs_device()
+    print(f"  separando stems de {wav.name} con Demucs ({model}) en {'GPU' if dev == 'cuda' else 'CPU'}: {name}"
+          + ("" if model_cached() else " · primera vez: descargando el modelo (~80 MB, solo esta vez)"))
+    r = subprocess.run([sys.executable, "-m", "demucs", "-n", model, "-d", dev, "--float32", "-o", str(tmp), str(wav)],
                        capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"Demucs falló:\n{r.stderr[-2000:]}")
@@ -70,7 +83,7 @@ def clipped_samples(path: Path, thr=0.999) -> int:
 
 # ---------- master ----------
 def master(wav: Path, drums_db=DEFAULTS["drums_db"], lufs=DEFAULTS["lufs"], ceiling=DEFAULTS["ceiling"],
-           mp3=True, log=print, bass_db=DEFAULTS["bass_db"]) -> dict:
+           mp3=True, log=print, bass_db=DEFAULTS["bass_db"], fade_in=0.0, fade_out=0.0) -> dict:
     wav = Path(wav)
     base = wav.with_name(f"{wav.stem}_master")
     mix_tmp = wav.with_name(f"{wav.stem}_mix_tmp.wav")
@@ -94,7 +107,13 @@ def master(wav: Path, drums_db=DEFAULTS["drums_db"], lufs=DEFAULTS["lufs"], ceil
     m = before if src == wav else measure(src)
     gain = lufs - m["lufs"]
     lim = 10 ** ((ceiling - 0.3) / 20)  # margen extra por la conversión a MP3
-    af = (f"volume={gain:.2f}dB,aresample={sr * 4},"
+    fades = ""
+    if fade_in > 0:
+        fades += f"afade=t=in:st=0:d={fade_in},"
+    if fade_out > 0:
+        dur = sf.info(str(src)).duration
+        fades += f"afade=t=out:st={max(dur - fade_out, 0):.3f}:d={fade_out},"
+    af = (f"{fades}volume={gain:.2f}dB,aresample={sr * 4},"
           f"alimiter=limit={lim:.4f}:attack=3:release=80:level=disabled:asc=1,"
           f"aresample={sr}")
     out_wav = base.with_suffix(".wav")

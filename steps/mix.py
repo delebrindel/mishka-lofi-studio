@@ -6,12 +6,16 @@
 playlists/<nombre>.json:
 {
   "title": "Christmas LoFi with Mishka", "slug": "christmas-lofi-with-mishka",
-  "crossfade": 4, "lufs": -14, "ceiling": -1.0, "format": "horizontal",
+  "gap": 1, "crossfade": 4, "fade_in": 5, "fade_out": 5, "lufs": -14, "ceiling": -1.0, "format": "horizontal",
   "tracks": ["first-lights-on-the-tree", "snowfall-by-the-fireplace", ...]   # carpetas de out/
 }
 
+Transición entre canciones: "gap" = segundos de silencio (por defecto 1). Con "gap": 0 se usa "crossfade"
+(segundos que se enciman las canciones).
+
 Qué toma usa de cada canción: la que masterizaste al último (el *_master.wav más reciente).
 Si una canción tiene tomas pero ninguna masterizada, masteriza la primera con los valores por defecto.
+El mix completo abre con fade in y cierra con fade out (5 s por defecto).
 Escribe en out/_playlists/<slug>/:  mix.wav, mix.mp3, chapters.txt, tracklist.json
 """
 import argparse, json, sys
@@ -54,9 +58,12 @@ def fmt_time(sec):
 
 def build(pl_path: Path, log=print) -> dict:
     pl = json.loads(Path(pl_path).read_text(encoding="utf-8"))
-    xf = float(pl.get("crossfade", 4))
+    gap = float(pl.get("gap", 1))                      # segundos de silencio entre canciones (por defecto 1)
+    xf = 0.0 if gap > 0 else float(pl.get("crossfade", 4))
     dest = OUT / "_playlists" / pl["slug"]
     dest.mkdir(parents=True, exist_ok=True)
+    for leftover in dest.glob("mix_raw*"):  # restos de un armado interrumpido
+        leftover.unlink(missing_ok=True)
 
     # 1. elegir (o crear) el master de cada canción
     chosen = []
@@ -83,13 +90,18 @@ def build(pl_path: Path, log=print) -> dict:
                 x = np.repeat(x, 2, axis=1)
             if tail is None:
                 starts.append(0.0)
+            elif xf == 0:                              # sin crossfade: cola completa + silencio
+                out.write(tail)
+                out.write(np.zeros((int(gap * sr), 2), np.float32))
+                written += int(gap * sr)
+                starts.append(written / sr)
             else:
                 n = min(len(tail), len(x))
                 t = np.linspace(0, np.pi / 2, n, dtype=np.float32)[:, None]
                 starts.append((written - n) / sr)
                 x = np.concatenate([tail[:n] * np.cos(t) + x[:n] * np.sin(t), x[n:]])
                 written -= n
-            keep = min(n_xf, len(x) // 2)
+            keep = min(n_xf, len(x) // 2) if xf > 0 else min(sr, len(x) // 2)
             out.write(x[:-keep])
             written += len(x)
             tail = x[-keep:]
@@ -99,7 +111,7 @@ def build(pl_path: Path, log=print) -> dict:
     # 3. pasada final: mismo loudness y techo que las canciones, sin separar stems
     log(f"  normalizando el mix completo ({fmt_time(total)})…")
     rep = master.master(raw, drums_db=0, bass_db=0, lufs=pl.get("lufs", -14), ceiling=pl.get("ceiling", -1.0),
-                        log=lambda *_: None)
+                        log=lambda *_: None, fade_in=pl.get("fade_in", 5), fade_out=pl.get("fade_out", 5))
     for ext in ("wav", "mp3", "json"):
         src = raw.with_name(f"mix_raw_master.{ext}")
         if src.exists():

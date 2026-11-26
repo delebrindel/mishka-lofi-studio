@@ -1,0 +1,29 @@
+{
+  "title": "Christmas Eve with Mishka",
+  "slug": "christmas-eve-with-mishka",
+  "gap": 1,
+  "crossfade": 4,
+  "fade_in": 5,
+  "fade_out": 5,
+  "lufs": -14,
+  "ceiling": -1.0,
+  "format": "horizontal",
+  "tracks": [
+    "dusk-on-christmas-eve",
+    "snow-on-the-lanterns",
+    "lights-down-the-street",
+    "pine-and-cinnamon",
+    "waiting-for-snowflakes",
+    "stockings-by-the-fire",
+    "the-village-clock",
+    "ribbons-and-paper-stars",
+    "moonlight-on-the-snow",
+    "hot-chocolate-hour",
+    "midnight-bells",
+    "silent-snowfall",
+    "sleeping-village",
+    "christmas-dawn"
+  ],
+  "cover_title": "Christmas Eve",
+  "scene": "Christmas Eve at night. Mishka sits on a cushioned window seat in a warm wooden attic room, seen in profile, looking out a large arched window at a snowy village with glowing lanterns, lit windows and a small clock tower under a deep blue sky with a full moon; snow falling. Inside: a small decorated Christmas tree with warm lights on the left, a candle in a glass jar and a steaming mug on the windowsill, an amber table lamp, a knitted blanket, paper stars hanging from the ceiling beams. Quiet, intimate, nostalgic."
+}

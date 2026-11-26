@@ -1,0 +1,18 @@
+{
+  "title": "Prompt test",
+  "slug": "prompt-test",
+  "gap": 1,
+  "crossfade": 4,
+  "fade_in": 5,
+  "fade_out": 5,
+  "lufs": -14,
+  "ceiling": -1.0,
+  "format": "horizontal",
+  "tracks": [
+    "test-dusk-a",
+    "test-dusk-b",
+    "test-dusk-c",
+    "test-dusk-d",
+    "test-dusk-e"
+  ]
+}
