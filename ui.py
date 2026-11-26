@@ -78,9 +78,12 @@ def load_pasted(text):
 def make_briefs(idea, n, progress=gr.Progress()):
     if not idea.strip():
         raise gr.Error("Escribe una idea")
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise gr.Error("No hay ANTHROPIC_API_KEY en .env. Pide los prompts en el chat de Claude y pégalos abajo.")
-    progress(0, desc="Claude está escribiendo los prompts…")
+    import claude_local
+    if not claude_local.available() and not os.getenv("ANTHROPIC_API_KEY"):
+        raise gr.Error("No encuentro Claude Code en esta compu. Instálalo (https://code.claude.com), corre `claude` "
+                       "una vez para entrar con tu cuenta, y reinicia Studio. O pega abajo un brief del chat.")
+    via = "Claude Code (tu suscripción)" if briefmod.backend() == "claude-code" else "la API de Anthropic"
+    progress(0, desc=f"Claude está escribiendo los prompts vía {via}… (1–2 min)")
     try:
         bs = briefmod.ask_claude(idea, int(n))
     except Exception as e:
@@ -594,7 +597,11 @@ def pl_anim(name, spec_text, progress=gr.Progress()):
             raise gr.Error(f"No pude leer el plan de animación: {e}")
         sp.write_text(json.dumps(spec, indent=2), encoding="utf-8")
     if not sp.exists():
-        raise gr.Error("Pega el plan de animación (pídeselo a Claude con tu portada)")
+        progress(0.05, desc="Claude Code está mirando la portada para planear la animación… (1–2 min)")
+        try:
+            animate.plan(img)
+        except Exception as e:
+            raise gr.Error(f"No pude planear la animación: {e}. Pega el plan que te dé Claude en el chat.")
     spec = json.loads(sp.read_text(encoding="utf-8"))
     progress(0.1, desc="Revisando zonas…")
     animate.check(img, spec)
@@ -622,8 +629,8 @@ with gr.Blocks(title="Mishka LoFi Studio") as app:
             idea = gr.Textbox(label="Idea", lines=2,
                               placeholder="ej. Mishka dormida junto a la ventana, primera nevada, domingo en la tarde")
             n_var = gr.Slider(1, 4, value=3, step=1, label="Propuestas")
-            go_idea = gr.Button("Escribir prompts (API)", variant="primary")
-            with gr.Accordion("Sin API key: pega aquí el brief que te dio Claude en el chat", open=True):
+            go_idea = gr.Button("Escribir prompts", variant="primary")
+            with gr.Accordion("Alternativa: pega aquí un brief que te dio Claude en el chat", open=False):
                 pasted = gr.Textbox(label="Brief (JSON)", lines=6)
                 load_btn = gr.Button("Cargar propuestas")
             briefs = gr.State([])
@@ -752,7 +759,7 @@ with gr.Blocks(title="Mishka LoFi Studio") as app:
             with gr.Row():
                 pl_cover_in = gr.Image(label="Portada", type="filepath", sources=["upload", "clipboard"])
                 pl_cover_save = gr.Button("Guardar portada", scale=0)
-            gr.Markdown("**4 · Animación** — pega el plan de animación que te da Claude (skill mishka-lofi-release) con tu portada.")
+            gr.Markdown("**4 · Animación** — déjalo vacío y Claude Code planea solo qué animar mirando la portada, o pega un plan del chat.")
             pl_spec = gr.Textbox(label="anim_spec.json", lines=5)
             pl_anim_btn = gr.Button("Animar portada")
             with gr.Row():

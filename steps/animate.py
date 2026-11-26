@@ -93,6 +93,17 @@ def glass_mask(window, title_px, H, W):
 
 # ---------- plan (Claude API) ----------
 def plan(img: Path):
+    import claude_local
+    if claude_local.available() or not os.getenv("ANTHROPIC_API_KEY"):
+        # Claude Code (tu suscripción): abre la imagen con su herramienta Read
+        text = claude_local.ask(
+            f"Open the image file '{img.name}' in the current folder with the Read tool and look at it carefully. "
+            "Then answer ONLY with the JSON described below, no prose.\n\n" + SPEC_PROMPT,
+            cwd=img.parent, allow_read=True)
+        spec = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+        spec_path(img).write_text(json.dumps(spec, indent=2), encoding="utf-8")
+        print(f"✓ spec (Claude Code) → {spec_path(img)}")
+        return spec
     import anthropic
 
     im = Image.open(img).convert("RGB")

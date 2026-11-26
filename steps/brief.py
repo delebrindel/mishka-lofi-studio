@@ -1,4 +1,7 @@
-"""Paso 0 — De una idea a todos los prompts (Claude API).
+"""Paso 0 — De una idea a todos los prompts.
+
+Usa Claude Code instalado en tu compu (tu suscripción de Claude, sin API key). Si no está instalado
+y hay ANTHROPIC_API_KEY en .env, usa la API. Forzar uno: MISHKA_BRIEF_BACKEND=claude-code | api
 
     python steps/brief.py "mishka dormida junto a la ventana mientras llueve, domingo en la tarde"
     python steps/brief.py "christmas eve" --variants 3      # 3 propuestas distintas para elegir
@@ -13,6 +16,7 @@ import argparse, json, os, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 OUT = ROOT / "out"
 MODEL = os.getenv("MISHKA_CLAUDE_MODEL", "claude-opus-5-5")
 
@@ -52,20 +56,33 @@ def parse(text: str) -> list[dict]:
     return data if isinstance(data, list) else [data]
 
 
-def ask_claude(idea: str, n=1) -> list[dict]:
-    import anthropic
+def backend() -> str:
+    import claude_local
+    want = os.getenv("MISHKA_BRIEF_BACKEND", "auto")
+    if want == "api" or (want == "auto" and not claude_local.available() and os.getenv("ANTHROPIC_API_KEY")):
+        return "api"
+    return "claude-code"
 
+
+def ask_claude(idea: str, n=1) -> list[dict]:
     guide = (ROOT / "config" / "brief_instructions.md").read_text(encoding="utf-8")
     used = used_titles()
     user = f"Idea for the next Mishka LoFi release:\n{idea}\n\n"
     if used:
         user += "Titles already used (do not repeat or closely imitate): " + "; ".join(used) + "\n\n"
     user += SCHEMA.format(n=n)
-    msg = anthropic.Anthropic().messages.create(
-        model=MODEL, max_tokens=4000, system=guide,
-        messages=[{"role": "user", "content": user}],
-    )
-    return parse("".join(b.text for b in msg.content if b.type == "text"))
+    if backend() == "api":
+        import anthropic
+        msg = anthropic.Anthropic().messages.create(
+            model=MODEL, max_tokens=4000, system=guide,
+            messages=[{"role": "user", "content": user}],
+        )
+        return parse("".join(b.text for b in msg.content if b.type == "text"))
+    import claude_local
+    prompt = ("You write song briefs for the Mishka LoFi channel. Follow this style guide exactly. "
+              "Do not use any tools; answer only with the JSON requested.\n\n"
+              f"=== STYLE GUIDE ===\n{guide}\n=== END OF GUIDE ===\n\n{user}")
+    return parse(claude_local.ask(prompt))
 
 
 def save(brief: dict, idea: str = "") -> Path:

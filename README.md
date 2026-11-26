@@ -2,7 +2,7 @@
 
 From an idea to a finished release: song prompts, music, mastering, animated cover and the final video — for single tracks and long playlists.
 
-The Studio UI is in Spanish. Everything runs locally except the parts you already pay for: prompts and animation plans are written in Claude (chat), covers are made in ChatGPT Plus. API keys are optional.
+The Studio UI is in Spanish. Everything runs locally except the parts you already pay for: prompts and animation plans are written by Claude through your local **Claude Code** (your Claude Pro/Max subscription, no API key), covers are made in ChatGPT Plus. API keys are optional.
 
 ## Mishka LoFi Studio
 
@@ -21,14 +21,18 @@ python ui.py      # opens http://localhost:7870
 
 | # | Step | Script | Runs on |
 |---|---|---|---|
-| 0 | **Brief** — idea → title, description, tags, cover scene, `song.json` | `steps/brief.py` | Claude chat (free) or Claude API |
+| 0 | **Brief** — idea → title, description, tags, cover scene, `song.json` | `steps/brief.py` | Local Claude Code (subscription) · Claude chat · Claude API |
 | 1 | **Cover** — Mishka cover from the style guide + reference images | `steps/cover_local.py` · `steps/image.py` | Local GPU (ComfyUI, Qwen-Image-Edit) · ChatGPT Plus · OpenAI API |
 | 2 | **Music** — takes from ACE-Step 1.5 through its local REST API | `steps/music.py` | Local GPU |
 | 3 | **Master** — Demucs splits drums/bass/other/vocals → drums −11 dB, bass −6 dB → −14 LUFS with a 4× oversampled true-peak limiter at −1 dBTP | `steps/master.py` | Local |
-| 4 | **Animation** — seamless 10 s loop (snow, rain, fire, lamps, steam, twinkle, blink) from an `anim_spec.json` | `steps/animate.py` + `tools/` | Local (plan from Claude chat or API) |
+| 4 | **Animation** — seamless 10 s loop (snow, rain, fire, lamps, steam, twinkle, blink) from an `anim_spec.json` | `steps/animate.py` + `tools/` | Local (plan by local Claude Code, Claude chat or API) |
 | 5 | **Playlist mix** — equal-power crossfades or short silent gaps between tracks, 5 s fade in/out at the very start and end, final loudness pass, chapters | `steps/mix.py` | Local |
 | 6 | **Video** — the loop repeated over the full audio, H.264 + AAC 320k | `steps/video.py` | Local |
 | 7 | **Publish** — YouTube title, description (with chapters), tags and an Instagram caption, ready to copy | `steps/seo.py` | Local |
+
+## Claude without an API key (Claude Code)
+
+`steps/claude_local.py` runs `claude -p` (Claude Code headless mode) on your machine, so 💡 Idea → **Escribir prompts** and the automatic animation plan use your Claude subscription. One-time setup: install Claude Code (https://code.claude.com), open a terminal, run `claude` and sign in with your Claude account. The pipeline removes `ANTHROPIC_API_KEY` from the environment when calling it, so the subscription is always used. If Claude Code isn't installed and an API key is set, the API is used instead (`MISHKA_BRIEF_BACKEND=claude-code|api` forces one).
 
 ## Setup (Windows)
 
@@ -48,7 +52,7 @@ python gpu_check.py
 `.env` is only needed for the optional APIs:
 
 ```
-ANTHROPIC_API_KEY=   # 💡 Idea "Escribir prompts (API)" and automatic animation planning
+ANTHROPIC_API_KEY=   # only if you don't use Claude Code
 OPENAI_API_KEY=      # steps/image.py
 ACESTEP_API_URL=http://localhost:8001
 COMFY_URL=http://127.0.0.1:8188
@@ -95,7 +99,7 @@ python steps/mix.py playlists/christmas-lofi-with-mishka.json --status
 python steps/mix.py playlists/christmas-lofi-with-mishka.json
 python steps/video.py out/_playlists/christmas-lofi-with-mishka
 python steps/seo.py playlists/christmas-lofi-with-mishka.json   # YouTube + Instagram texts
-python steps/brief.py "first snow, Mishka by the window" --variants 3   # needs ANTHROPIC_API_KEY
+python steps/brief.py "first snow, Mishka by the window" --variants 3   # local Claude Code (or API key)
 python steps/chatgpt_prompt.py playlists/christmas-lofi-with-mishka.json  # cover prompt to paste in ChatGPT
 python steps/cover_local.py out/_playlists/christmas-lofi-with-mishka --n 3   # local, ComfyUI
 python steps/image.py --brief out/<slug>/brief.json --n 3              # needs OPENAI_API_KEY
