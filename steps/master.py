@@ -12,7 +12,7 @@ Uso:
     python steps/master.py <wav> --drums-db 0 --bass-db 0   # solo normalizar, sin separar
 Escribe junto al wav:  <nombre>_master.wav / .mp3 / _master.json  y  stems/<nombre>/{drums,bass,other,vocals}.wav
 """
-import argparse, json, re, shutil, subprocess, sys
+import argparse, json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
 import numpy as np
@@ -22,10 +22,34 @@ DEFAULTS = dict(drums_db=-11.0, bass_db=-6.0, lufs=-14.0, ceiling=-1.0)
 STEMS = ("drums", "bass", "other", "vocals")
 
 
+# ---------- avance ----------
+def span(progress, lo, hi):
+    """Reporta el avance de un sub-paso dentro del tramo [lo, hi] del total."""
+    if not progress:
+        return None
+    return lambda f, text="": progress(None if f is None else lo + (hi - lo) * max(0.0, min(1.0, f)), text)
+
+
+def run_ffmpeg(args: list, total_s=None, progress=None, text=""):
+    """subprocess.run(args) de ffmpeg; si hay progress y duración, reporta el avance (0–1) mientras corre."""
+    if not progress or not total_s:
+        subprocess.run(args, check=True)
+        return
+    cmd = [args[0], "-progress", "pipe:1", "-nostats", *args[1:]]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
+    for line in p.stdout:
+        if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+            try:
+                progress(min(int(line.split("=")[1]) / 1e6 / total_s, 1.0), text)
+            except ValueError:
+                pass
+    if p.wait() != 0:
+        raise subprocess.CalledProcessError(p.returncode, cmd)
+
+
 # ---------- separación ----------
 def model_cached() -> bool:
     """¿Ya está descargado algún modelo de Demucs en la caché de PyTorch?"""
-    import os
     hub = Path(os.environ.get("TORCH_HOME", Path.home() / ".cache" / "torch")) / "hub" / "checkpoints"
     return any(hub.glob("*.th"))
 
@@ -42,20 +66,48 @@ def demucs_device() -> tuple[str, str]:
     return "cpu", f"{why} ({torch.__version__})"
 
 
-def separate(wav: Path, model="htdemucs") -> dict:
-    """Devuelve {stem: ruta} para drums, bass, other, vocals. Usa caché en stems/<nombre>/."""
+def stems_cached(wav: Path) -> bool:
+    stem_dir = wav.parent / "stems" / wav.stem
+    return all((stem_dir / f"{k}.wav").exists() and (stem_dir / f"{k}.wav").stat().st_mtime > wav.stat().st_mtime
+               for k in STEMS)
+
+
+def separate(wav: Path, model="htdemucs", log=print, progress=None) -> dict:
+    """Devuelve {stem: ruta} para drums, bass, other, vocals. Usa caché en stems/<nombre>/.
+    progress(fracción, texto) recibe el avance de Demucs (lee su barra de %)."""
     stem_dir = wav.parent / "stems" / wav.stem
     paths = {k: stem_dir / f"{k}.wav" for k in STEMS}
-    if all(p.exists() and p.stat().st_mtime > wav.stat().st_mtime for p in paths.values()):
+    if stems_cached(wav):
+        log("  stems ya separados antes: se reutilizan")
         return paths
     tmp = wav.parent / "stems" / "_demucs"
     dev, name = demucs_device()
-    print(f"  separando stems de {wav.name} con Demucs ({model}) en {'GPU' if dev == 'cuda' else 'CPU'}: {name}"
-          + ("" if model_cached() else " · primera vez: descargando el modelo (~80 MB, solo esta vez)"))
-    r = subprocess.run([sys.executable, "-m", "demucs", "-n", model, "-d", dev, "--float32", "-o", str(tmp), str(wav)],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        raise RuntimeError(f"Demucs falló:\n{r.stderr[-2000:]}")
+    where = "GPU" if dev == "cuda" else "CPU (lento)"
+    log(f"  separando batería y bajo con Demucs en {where}: {name}"
+        + ("" if model_cached() else " · primera vez: descargando el modelo (~80 MB, solo esta vez)"))
+    p = subprocess.Popen([sys.executable, "-m", "demucs", "-n", model, "-d", dev, "--float32", "-o", str(tmp), str(wav)],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, encoding="utf-8", errors="replace",
+                         env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    err, buf = [], ""
+    while True:  # la barra de tqdm se reescribe con \r: se lee por pedazos
+        chunk = p.stderr.read(64)
+        if not chunk:
+            break
+        buf += chunk
+        *parts, buf = re.split(r"[\r\n]", buf)
+        for part in parts:
+            err.append(part)
+            m = re.search(r"(\d{1,3})%\|", part)
+            if m and progress:
+                progress(int(m.group(1)) / 100, f"separando batería y bajo en {where}")
+    err.append(buf)
+    if p.wait() != 0:
+        full = "\n".join(e for e in err if e.strip())
+        print(full[-4000:], file=sys.stderr)  # el detalle completo queda en la ventana de Studio
+        last = next((l.strip() for l in reversed(err) if l.strip() and l.strip()[0] not in "~^"), "sin detalle")
+        hint = (" ¿Primera vez? Demucs necesita internet para bajar su modelo (~80 MB)."
+                if ("urlopen" in full or "URLError" in full) and not model_cached() else "")
+        raise RuntimeError(f"Demucs falló: {last[-300:]}.{hint} El detalle completo está en la ventana negra de Studio.")
     src = tmp / model / wav.stem
     stem_dir.mkdir(parents=True, exist_ok=True)
     for k, p in paths.items():
@@ -83,16 +135,25 @@ def clipped_samples(path: Path, thr=0.999) -> int:
 
 # ---------- master ----------
 def master(wav: Path, drums_db=DEFAULTS["drums_db"], lufs=DEFAULTS["lufs"], ceiling=DEFAULTS["ceiling"],
-           mp3=True, log=print, bass_db=DEFAULTS["bass_db"], fade_in=0.0, fade_out=0.0) -> dict:
+           mp3=True, log=print, bass_db=DEFAULTS["bass_db"], fade_in=0.0, fade_out=0.0, progress=None) -> dict:
+    """progress(fracción 0–1, texto), si se da, recibe el avance de cada paso."""
     wav = Path(wav)
     base = wav.with_name(f"{wav.stem}_master")
     mix_tmp = wav.with_name(f"{wav.stem}_mix_tmp.wav")
+    say = progress or (lambda *_: None)
+    separating = abs(drums_db) > 0.05 or abs(bass_db) > 0.05
+    # tramos del total: con separación nueva, Demucs es lo más tardado
+    a, b = (0.05, 0.6) if separating and not stems_cached(wav) else (0.05, 0.15)
 
+    say(0.01, "midiendo el original")
     before = measure(wav)
     # 1–2. remezcla en float (nada se recorta aunque pase de 0 dBFS)
-    if abs(drums_db) > 0.05 or abs(bass_db) > 0.05:
+    if separating:
         gains = {"drums": drums_db, "bass": bass_db, "other": 0.0, "vocals": 0.0}
-        stems = {k: sf.read(p, dtype="float32", always_2d=True) for k, p in separate(wav).items()}
+        say(a, "separando batería y bajo")
+        sep = separate(wav, log=log, progress=span(progress, a, b))
+        say(b, f"remezclando: batería {drums_db:+.0f} dB, bajo {bass_db:+.0f} dB")
+        stems = {k: sf.read(p, dtype="float32", always_2d=True) for k, p in sep.items()}
         sr = stems["other"][1]
         n = min(len(x) for x, _ in stems.values())
         mix = sum(x[:n] * (10 ** (gains[k] / 20)) for k, (x, _) in stems.items())
@@ -117,14 +178,19 @@ def master(wav: Path, drums_db=DEFAULTS["drums_db"], lufs=DEFAULTS["lufs"], ceil
           f"alimiter=limit={lim:.4f}:attack=3:release=80:level=disabled:asc=1,"
           f"aresample={sr}")
     out_wav = base.with_suffix(".wav")
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-af", af,
-                    "-c:a", "pcm_s24le", str(out_wav)], check=True)
+    total = sf.info(str(src)).duration
+    lim_txt = f"normalizando a {lufs:g} LUFS y limitando picos a {ceiling:g} dBTP"
+    say(b + 0.02, lim_txt)
+    run_ffmpeg(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-af", af, "-c:a", "pcm_s24le", str(out_wav)],
+               total, span(progress, b + 0.02, 0.85), lim_txt)
     mix_tmp.unlink(missing_ok=True)
 
     if mp3:
-        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out_wav), "-c:a", "libmp3lame",
-                        "-b:a", "320k", str(base.with_suffix(".mp3"))], check=True)
+        say(0.85, "exportando MP3 320k")
+        run_ffmpeg(["ffmpeg", "-y", "-v", "error", "-i", str(out_wav), "-c:a", "libmp3lame",
+                    "-b:a", "320k", str(base.with_suffix(".mp3"))], total, span(progress, 0.85, 0.93), "exportando MP3 320k")
 
+    say(0.93, "verificando loudness, picos y clips")
     after = measure(out_wav)
     rep = {
         "source": wav.name, "drums_db": drums_db, "bass_db": bass_db, "target_lufs": lufs, "ceiling_dbtp": ceiling,

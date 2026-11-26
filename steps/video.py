@@ -14,6 +14,9 @@ El loop se codifica una sola vez y luego se copia N veces (sin recodificar): 50 
 import argparse, json, subprocess, sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from master import run_ffmpeg, span  # noqa: E402
+
 
 def duration(path: Path) -> float:
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
@@ -41,8 +44,10 @@ def find_inputs(folder: Path, audio=None, visual=None):
     return v, a
 
 
-def render(folder: Path, audio=None, visual=None, log=print) -> Path:
+def render(folder: Path, audio=None, visual=None, log=print, progress=None) -> Path:
+    """progress(fracción 0–1, texto), si se da, recibe el avance de ffmpeg."""
     folder = Path(folder)
+    say = progress or (lambda *_: None)
     v, a = find_inputs(folder, audio, visual)
     out = folder / "video.mp4"
     tmp = folder / "video_rendering.mp4"   # se renombra al final: un render interrumpido no deja un video.mp4 cortado
@@ -53,20 +58,25 @@ def render(folder: Path, audio=None, visual=None, log=print) -> Path:
     if v.suffix == ".mp4":
         # 1) codificar el loop una vez, con un solo keyframe al inicio para que se pueda copiar en bucle
         seg = folder / "_loop_seg.mp4"
-        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(v), "-an", "-c:v", "libx264", "-preset", "slow",
-                        "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-g", "600", "-keyint_min", "600",
-                        "-sc_threshold", "0", "-bf", "0", str(seg)], check=True)
+        say(0.01, "preparando el loop de la animación")
+        run_ffmpeg(["ffmpeg", "-y", "-v", "error", "-i", str(v), "-an", "-c:v", "libx264", "-preset", "slow",
+                    "-crf", "18", "-pix_fmt", "yuv420p", "-r", "30", "-g", "600", "-keyint_min", "600",
+                    "-sc_threshold", "0", "-bf", "0", str(seg)], duration(v), span(progress, 0.0, 0.15),
+                   "preparando el loop de la animación")
+        lo = 0.15
         # 2) repetirlo sin recodificar y ponerle el audio
         cmd = ["ffmpeg", "-y", "-v", "error", "-stream_loop", "-1", "-i", str(seg), "-i", str(a),
                "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "320k", "-ar", "48000",
                "-t", f"{total:.3f}", "-movflags", "+faststart", str(tmp)]
     else:
-        seg = None
+        seg, lo = None, 0.0
         cmd = ["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "1", "-i", str(v), "-i", str(a),
                "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-tune", "stillimage", "-crf", "18",
                "-pix_fmt", "yuv420p", "-r", "30", "-g", "300",
                "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-t", f"{total:.3f}", "-movflags", "+faststart", str(tmp)]
-    subprocess.run(cmd, check=True)
+    text = f"armando el video ({int(total // 60)}:{int(total % 60):02d} de audio)"
+    say(lo, text)
+    run_ffmpeg(cmd, total, span(progress, lo, 0.98), text)
     tmp.replace(out)
     if seg:
         seg.unlink(missing_ok=True)
