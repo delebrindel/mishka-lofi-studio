@@ -1,0 +1,11 @@
+{
+  "title": "Layered Rain",
+  "caption": "A reflective, immersive rainy lo-fi instrumental track with modern chillhop production, led by expressive close-mic felt piano and a memorable melodic riff. It opens with felt piano, then soft brushed drums and a round, gentle bass enter beneath warm Rhodes playing soft, consonant minor chords that stay in key. A delicate celesta answers the piano far in the background, adding a distinct layered shimmer. The mix is clean but warm, with light vinyl crackle, subtle tape saturation and an airy reverb, evoking a lamplit room beside a rain-covered window. It gradually adds gentle layers while keeping the emotional melody clear and ends with a soft fade-out as the piano returns to the opening riff.",
+  "lyrics": "[Intro - piano]\n[Main Theme - piano and Rhodes]\n[Layered Theme - piano and celesta]\n[Outro - piano, music fades out]",
+  "bpm": 72,
+  "key": "Am",
+  "time_signature": 4,
+  "duration": 30,
+  "batch_size": 1,
+  "seed": 1126
+}
