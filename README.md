@@ -12,10 +12,20 @@ python ui.py      # opens http://localhost:7870
 
 | Tab | What it does |
 |---|---|
-| 💡 **Idea** | Turns an idea into title, YouTube description, tags, cover scene and the ACE-Step prompt. Paste a brief written by Claude in chat, or use the Claude API if a key is set ("Escribir prompts (API)"). |
+| 💡 **Idea** | Turns an idea into title, YouTube description, tags, cover scene and the ACE-Step prompt with your local Claude Code ("Escribir prompts"), or paste a brief written by Claude in chat. |
 | 🎵 **Canción** (song) | Generates takes with ACE-Step (caption, structure, BPM, key, duration, seed). |
 | 🎚️ **Master** | Browse songs by playlist (◀ ▶ to move between them, takes preview on select, 🗑 delete a take to `songs/_papelera`). **Repaint** regenerates just a time range of a take (ACE-Step repaint). Lowers drums and bass via stem separation, normalizes loudness and prevents clipping. Before/after player and level report. |
 | 📀 **Playlist** | Generates missing tracks, regenerates one track or the whole playlist, joins the masters into one mix with crossfades, writes YouTube chapters, imports the cover, animates it, renders the long video and writes the publishing texts. |
+
+**Feedback while you work**
+
+- **Status bar** (top, every tab): whether ACE-Step is running and which models it loaded (warns if the LM is the 0.6B), Claude Code, the GPU Demucs will use, and every job in progress with its % and elapsed time. It refreshes on its own; ↻ Revisar forces it.
+- **Job panels** under each long action (generate, regenerate, repaint, master, mix, animate, video, Claude prompts): a live bar with the real progress reported by ACE-Step (LM thinking → audio → decoding), Demucs, ffmpeg and the animation renderer, the current step, elapsed time and an estimate of what's left. It ends green with the next step, amber with a warning, or red with what went wrong and how to fix it. The button shows ⏳ and is locked while its job runs.
+- **Pop-up notices** when something finishes or fails, also for quick actions (cover saved, prompt ready, texts ready, take deleted).
+- **Playlist checklist**: songs ready, mix, cover, animation, video and texts, each ✅ / ⬜ / ⚠️. It flags what became **outdated** and why — e.g. a take in the mix was deleted, a song was re-mastered, the transition changed, the video is older than the mix or the animation, the animation is older than the cover — so you know what to rebuild.
+- **Tone meter** 🎯: every new take is measured as it downloads (`steps/keycheck.py`) — the key it actually sounds in and how much of its harmonic energy falls outside that key's scale. ✅ up to 18 % · 🟡 18–25 % · ⚠️ over 25 % (usually sounds out of tune). Shown next to each take in 🎚️ Master and Regenerar una pista, in the playlist table and in the job panel; **🎯 Medir tono** measures older takes.
+- **Caption check** as you type (🎵 Canción and Regenerar una pista): warnings from the prompt guide (missing "instrumental", BPM/key in the caption, tense harmony, too long…).
+- Errors are summarized in one line; the full detail goes to the Studio console window.
 
 ## Pipeline
 
@@ -29,6 +39,7 @@ python ui.py      # opens http://localhost:7870
 | 5 | **Playlist mix** — equal-power crossfades or short silent gaps between tracks, 5 s fade in/out at the very start and end, final loudness pass, chapters | `steps/mix.py` | Local |
 | 6 | **Video** — the loop repeated over the full audio, H.264 + AAC 320k | `steps/video.py` | Local |
 | 7 | **Publish** — YouTube title, description (with chapters), tags and an Instagram caption, ready to copy | `steps/seo.py` | Local |
+| 8 | **Single tracks** — every mastered song of a playlist, in order and named (`01 - Title.wav` 24-bit + `.mp3` 320k with title, track number, album, artist and cover) in `pistas/` | `steps/export.py` | Local |
 
 ## Claude without an API key (Claude Code)
 
@@ -67,7 +78,7 @@ COMFY_URL=http://127.0.0.1:8188
 
 ## ACE-Step on a 12 GB GPU (use the 1.7B LM)
 
-ACE-Step classifies exactly 12.0 GB as *tier4* and silently falls back to the small `acestep-5Hz-lm-0.6B` planner. Reporting 12.5 GB moves it to *tier5*, which loads `acestep-5Hz-lm-1.7B` — a clearly better composition planner on an RTX 3060. Start the API with `D:\ACE-Step-1.5\start_api_1.7B.bat`:
+ACE-Step classifies exactly 12.0 GB as *tier4* and silently falls back to the small `acestep-5Hz-lm-0.6B` planner. Reporting 12.5 GB moves it to *tier5*, which loads `acestep-5Hz-lm-1.7B` — a clearly better composition planner on an RTX 3060. Start the API with `D:\ACE-Step-1.5\start_api_1_7.bat`:
 
 ```
 @echo off
@@ -79,7 +90,7 @@ Check the log for `Configuration Tier: tier5` and no "Falling back … 0.6B". If
 
 ## Daily use
 
-1. Start ACE-Step's API: `D:\ACE-Step-1.5\start_api_1.7B.bat` (keep it open).
+1. Start ACE-Step's API: `D:\ACE-Step-1.5\start_api_1_7.bat` (keep it open).
 2. Start Studio: `python ui.py`.
 3. Ask Claude (skill **mishka-lofi-release**) for proposals → paste the brief in 💡 Idea, or let Claude write it straight into `out/`.
 4. 🎵 Canción → **Generar** → listen to the takes.
@@ -99,6 +110,8 @@ python steps/mix.py playlists/christmas-lofi-with-mishka.json --status
 python steps/mix.py playlists/christmas-lofi-with-mishka.json
 python steps/video.py out/_playlists/christmas-lofi-with-mishka
 python steps/seo.py playlists/christmas-lofi-with-mishka.json   # YouTube + Instagram texts
+python steps/export.py playlists/christmas-lofi-with-mishka.json  # single tracks in order → pistas/
+python steps/keycheck.py out/<slug>                              # tone meter for every take of a song
 python steps/brief.py "first snow, Mishka by the window" --variants 3   # local Claude Code (or API key)
 python steps/chatgpt_prompt.py playlists/christmas-lofi-with-mishka.json  # cover prompt to paste in ChatGPT
 python steps/cover_local.py out/_playlists/christmas-lofi-with-mishka --n 3   # local, ComfyUI
@@ -123,6 +136,7 @@ out/                         generated material (git-ignored)
   <slug>/songs/take_<seed>.wav, take_<seed>_master.wav/.mp3/.json, takes.json, stems/
   <slug>/cover.png, anim_spec.json, anim_check.png, cover_loop.mp4, video.mp4
   _playlists/<slug>/mix.wav, mix.mp3, chapters.txt, tracklist.json, cover.png, cover_loop.mp4, video.mp4
+  _playlists/<slug>/pistas/01 - Title.wav/.mp3 …, tracklist.txt, export.json
 ```
 
 ## File formats
@@ -162,7 +176,11 @@ Music defaults match the ACE-Step Gradio UI (turbo model, 8 steps, guidance 7, s
 }
 ```
 
-**Master track selection in playlists:** the most recently mastered take of each song is used. Songs with takes but no master get their first take mastered with the defaults.
+**Master track selection in playlists:** the most recently mastered take of each song is used, as long as its original take still exists — if you delete a take (🗑 in Master, or by hand in Explorer), its master stops counting and the previous master takes over. Songs with takes but no master get their newest take mastered with the defaults. Takes are listed newest first. `tracklist.json` records which takes went into the mix, so Studio can tell when the mix no longer matches.
+
+## Keys: avoid flats
+
+Measured on 72 takes (Nov 2026): when the requested key was natural (C, D, E, F, G, A, Am, Em, Dm, Bm…) ACE-Step played in it 44 of 46 times, with a median of 13 % of energy outside the scale. With flat keys (Eb, Bb, Ab, Db, and F minor) it followed the key 1 of 26 times and the takes landed in a blurred key (median 23 %, 10 of 26 over 25 %) — that is what sounds "off". `steps/music.py` now sends flat keys one semitone lower (Eb→D, Bb→A, Ab→G, Db→C, Fm→Em) and says so in the log; the prompt guide only suggests natural keys. A repaint is requested in the key the take actually sounds in, so the new section doesn't clash with the rest.
 
 ## Notes
 

@@ -217,10 +217,18 @@ def check(img: Path, spec: dict):
     print(f"✓ revisión → {outp}  ({len(fx)} efectos)")
 
 
-def render(img: Path, spec: dict):
+def render(img: Path, spec: dict, progress=None):
+    """progress(fracción 0–1, texto), si se da, recibe el avance cuadro por cuadro."""
     fx = build(img, spec)
     out = img.with_name("cover_loop.mp4")
-    L.run(frame_fn(fx), ["", "render", str(out)], L.G["W"], L.G["H"])
+    frame = frame_fn(fx)
+    if progress:
+        inner = frame
+
+        def frame(i):
+            progress(i / L.N, f"cuadro {i + 1} de {L.N}")
+            return inner(i)
+    L.run(frame, ["", "render", str(out)], L.G["W"], L.G["H"])
     L.verify(str(out))
     print(f"✓ loop → {out}")
 

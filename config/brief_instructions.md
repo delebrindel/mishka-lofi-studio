@@ -45,7 +45,7 @@ Si hay instrumento distintivo, que abra y cierre: [Intro - music box] … [Outro
 
 ## Parámetros
 - BPM 62–80 (más lento = más íntimo; por debajo de 60 ACE-Step se vuelve inestable). Compás 4/4. Duración 210–220 s. Batch 2.
-- Tonalidad: SOLO tonalidades comunes, que son las más estables en ACE-Step. Mayores: C, G, D, F, A, E, Bb, Eb. Menores: Am, Em, Dm, Bm. Evita Db, Ab, Gb, Fm, Cm, Gm, F#m, C#m.
+- Tonalidad: SOLO tonalidades naturales, sin bemoles. Mayores: C, D, F, G, A, E. Menores: Am, Em, Dm, Bm. Nunca Eb, Bb, Ab, Db, Gb ni Fm: medido en 72 tomas, ACE-Step respetó la tonalidad natural 44 de 46 veces y la de bemol 1 de 26, y esas tomas suenan fuera de tono. Para un color más oscuro usa D o A en vez de Eb o Bb.
 - Mayor para escenas cálidas/esperanzadas, menor para melancolía/lluvia.
 
 ## Estabilidad (para que ACE-Step no "alucine")
