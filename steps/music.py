@@ -66,9 +66,10 @@ def lint(song: dict) -> list[str]:
     """Avisos de cosas que, según la guía de ACE-Step, vuelven inestable la generación."""
     w = []
     cap = song.get("caption", "").lower()
+    instrumental = vocal_language(song) == "unknown"
     if re.search(r"\b\d{2,3}\s*bpm\b|\bbpm\b|\bin [a-g](#|b)? (major|minor)\b|\bkey of\b", cap):
         w.append("el caption menciona BPM o tonalidad: van en sus campos, no en el caption")
-    if any(v in cap for v in ("vocal", "singing", "voice", "choir")) and "no vocal" not in cap:
+    if instrumental and any(v in cap for v in ("vocal", "singing", "voice", "choir")) and "no vocal" not in cap:
         w.append("el caption menciona voces y la canción es instrumental")
     if any(w in cap for w in ("half-diminished", "jazzy", "dissonan", "chromatic", "tension")):
         w.append("el caption pide armonía con tensión (half-diminished / jazzy): suele dar acordes discordantes; "
@@ -76,7 +77,7 @@ def lint(song: dict) -> list[str]:
     n_words = len(cap.split())
     if n_words > 125:
         w.append(f"caption largo ({n_words} palabras): los ejemplos oficiales van de ~85 a ~110")
-    if "instrumental" not in cap:
+    if instrumental and "instrumental" not in cap:
         w.append("el caption no dice «instrumental»: el modelo asume voces si no se lo dices")
     if len(re.findall(r"far in the background", cap)) > 2:
         w.append("más de 2 sonidos ambientales: el modelo puede mezclarlos raro")
@@ -122,7 +123,15 @@ def unwrap(r: requests.Response):
     return j["data"]
 
 
+def vocal_language(song: dict) -> str:
+    language = song.get("vocal_language", "unknown")
+    if not isinstance(language, str) or not re.fullmatch(r"unknown|[a-z]{2}", language):
+        raise ValueError("vocal_language must be 'unknown' or a two-letter language code")
+    return language
+
+
 def submit(song: dict, seed, fmt="wav") -> str:
+    language = vocal_language(song)
     body = {
         "prompt": song["caption"],
         "lyrics": song.get("lyrics", "[Instrumental]"),
@@ -131,7 +140,7 @@ def submit(song: dict, seed, fmt="wav") -> str:
         "time_signature": str(song.get("time_signature", 4)),
         "audio_duration": song.get("duration", 210),
         "batch_size": song.get("batch_size", 2),
-        "vocal_language": "unknown",   # instrumental: no empujar al modelo hacia voces en inglés
+        "vocal_language": "unknown",
         "audio_format": fmt,
     }
     conf = settings()
@@ -139,6 +148,12 @@ def submit(song: dict, seed, fmt="wav") -> str:
     for k in list(conf) + ["model"]:  # song.json puede sobrescribir cualquiera
         if k in song and k != "reference_audio":
             body[k] = song[k]
+    if "vocal_language" in song:
+        body["vocal_language"] = language
+    if language != "unknown":
+        # The instrumental preset's negative prompt suppresses sung vocals.
+        body["lm_negative_prompt"] = song.get("lm_negative_prompt", "")
+        body["use_cot_language"] = False
     ref = song.get("reference_audio", conf.get("reference_audio"))
     if ref:  # timbre y mezcla de una canción tuya que te encante (no copia la melodía)
         rp = Path(ref) if Path(ref).is_absolute() else SETTINGS.parent.parent / ref
@@ -210,7 +225,7 @@ def repaint(song: dict, src: Path, start: float, end: float, seed=None, variants
         "repainting_start": f"{start:.2f}", "repainting_end": f"{end:.2f}", "chunk_mask_mode": "explicit",
         "bpm": str(song.get("bpm", "")), "key_scale": key_scale(song.get("key", "")),
         "time_signature": str(song.get("time_signature", 4)), "batch_size": str(variants),
-        "audio_format": fmt, "vocal_language": "unknown",
+        "audio_format": fmt, "vocal_language": vocal_language(song),
     }
     for k in ("inference_steps", "guidance_scale", "shift", "infer_method"):
         data[k] = str(song.get(k, DEFAULTS[k]))

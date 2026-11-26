@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": { "test": "node --test" },
-  "pi": { "extensions": ["./mishka.ts"] },
+  "pi": { "extensions": ["./mishka.ts"],
+    "skills": ["./skills"] },
   "peerDependencies": { "@earendil-works/pi-coding-agent": "*" }
 }
